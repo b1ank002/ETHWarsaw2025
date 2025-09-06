@@ -12,7 +12,7 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
   const miniKit = useMiniKit();
   const [address, setAddress] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedAsset] = useState<"BNB_BASE">("BNB_BASE");
+  const [selectedAsset] = useState<"CELO">("CELO");
   const [selectedFiat] = useState<"PLN">("PLN");
   const [fiatAmount, setFiatAmount] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
@@ -43,7 +43,7 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
     try {
       const sdk = new RampInstantSDK({
         url: "https://app.ramp.network",
-        hostAppName: "Base Mini App",
+        hostAppName: "Celo Mini App",
         hostLogoUrl: "/logo.png",
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
@@ -102,7 +102,7 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
     <div className={`bg-white rounded-2xl shadow-lg p-6 max-w-md mx-auto ${className}`}>
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Buy Crypto on Base
+          Buy CELO on Celo
         </h2>
         <p className="text-gray-600">
           Purchase crypto directly with your card
@@ -138,11 +138,11 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
       {/* Asset Selection */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Buy Binance Coin
+          Buy CELO
         </label>
-        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 text-center">
-          <div className="text-2xl font-bold text-blue-800 mb-1">BNB</div>
-          <div className="text-sm text-blue-600">Binance Coin</div>
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-green-800 mb-1">CELO</div>
+          <div className="text-sm text-green-600">Celo Native Token</div>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
             Opening Ramp...
           </div>
         ) : (
-          "Buy BNB on Base"
+          "Buy CELO on Celo"
         )}
       </button>
 

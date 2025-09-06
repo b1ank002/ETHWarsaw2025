@@ -24,7 +24,7 @@ export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
   const [plnAmount, setPlnAmount] = useState<string>("");
-  const [bnbAmount, setBnbAmount] = useState<string>("");
+  const [celoAmount, setCeloAmount] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showRampWidget, setShowRampWidget] = useState(false);
@@ -55,20 +55,20 @@ export default function App() {
 
   const handlePlnChange = (value: string) => {
     setPlnAmount(value);
-    // Automatic calculation from PLN to BNB
+    // Automatic calculation from PLN to CELO
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const bnbValue = (parseFloat(value) / 3253.17).toFixed(8);
-      setBnbAmount(bnbValue);
+      const celoValue = (parseFloat(value) / 2.5).toFixed(8);
+      setCeloAmount(celoValue);
     } else {
-      setBnbAmount("");
+      setCeloAmount("");
     }
   };
 
-  const handleBnbChange = (value: string) => {
-    setBnbAmount(value);
-    // Automatic calculation from BNB to PLN
+  const handleCeloChange = (value: string) => {
+    setCeloAmount(value);
+    // Automatic calculation from CELO to PLN
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const plnValue = (parseFloat(value) * 3253.17).toFixed(2);
+      const plnValue = (parseFloat(value) * 2.5).toFixed(2);
       setPlnAmount(plnValue);
     } else {
       setPlnAmount("");
@@ -94,17 +94,17 @@ export default function App() {
       
       console.log("Opening Ramp with:", {
         plnAmount,
-        bnbAmount
+        celoAmount
       });
       
       const sdk = new RampInstantSDK({
         url: "https://app.ramp.network",
-        hostAppName: "BNB Purchase App",
+        hostAppName: "CELO Purchase App",
         hostLogoUrl: "/logo.png",
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
         // Don't pass userAddress - let Ramp handle wallet connection
-        swapAsset: "BNB_BASE",
+        swapAsset: "CELO",
         fiatCurrency: "PLN",
         fiatValue: plnAmount,
         variant: "auto",
@@ -123,7 +123,7 @@ export default function App() {
         if (event.type === "PURCHASE_SUCCESSFUL" || event.type === "PURCHASE_CREATED") {
           setIsLoading(false);
           setShowRampWidget(false);
-          alert("BNB purchase successful! Check your wallet.");
+          alert("CELO purchase successful! Check your wallet.");
         }
         
         // @ts-expect-error - Ramp event types may vary
@@ -141,7 +141,7 @@ export default function App() {
       setShowRampWidget(false);
       alert("Error opening Ramp widget. Please try again.");
     }
-  }, [plnAmount, bnbAmount]);
+  }, [plnAmount, celoAmount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -150,13 +150,13 @@ export default function App() {
         <header className="flex justify-between items-center mb-8">
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-lg font-bold text-white">B</span>
+              <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-lg font-bold text-white">C</span>
               </div>
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-900"></div>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Buy BNB</h1>
+              <h1 className="text-xl font-bold text-white">Buy CELO</h1>
               <p className="text-sm text-slate-400">With Polish Zloty</p>
             </div>
           </div>
@@ -204,8 +204,8 @@ export default function App() {
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden">
             <div className="p-8">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-white mb-2">Buy BNB</h2>
-                <p className="text-slate-400">Enter amount in Polish Zloty or BNB</p>
+                <h2 className="text-2xl font-bold text-white mb-2">Buy CELO</h2>
+                <p className="text-slate-400">Enter amount in Polish Zloty or CELO</p>
               </div>
               
               {/* PLN Input */}
@@ -237,20 +237,20 @@ export default function App() {
                 </div>
               </div>
 
-              {/* BNB Input */}
+              {/* CELO Input */}
               <div className="space-y-4 mb-8">
-                <label className="text-sm font-medium text-slate-300">Binance Coin (BNB)</label>
+                <label className="text-sm font-medium text-slate-300">Celo Native Token (CELO)</label>
                 <div className="relative group">
                   <div className="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center space-x-3 z-10">
-                    <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                      <span className="text-sm font-bold text-white">B</span>
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-sm font-bold text-white">C</span>
                     </div>
-                    <span className="text-sm font-semibold text-slate-300">BNB</span>
+                    <span className="text-sm font-semibold text-slate-300">CELO</span>
                   </div>
                   <input
                     type="number"
-                    value={bnbAmount}
-                    onChange={(e) => handleBnbChange(e.target.value)}
+                    value={celoAmount}
+                    onChange={(e) => handleCeloChange(e.target.value)}
                     className="w-full pl-24 pr-6 py-6 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-4xl font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 group-hover:bg-white/15"
                     placeholder="0"
                     step="0.00000001"
@@ -261,13 +261,13 @@ export default function App() {
 
               {/* Conversion Rate */}
               <div className="text-center text-sm text-slate-400 mb-8">
-                <span className="bg-slate-800/50 px-4 py-2 rounded-full">1.00 BNB = PLN 3,253.17</span>
+                <span className="bg-slate-800/50 px-4 py-2 rounded-full">1.00 CELO = PLN 2.50</span>
               </div>
 
               {/* Buy Button */}
               <button
                 onClick={openRamp}
-                disabled={isLoading || (!plnAmount && !bnbAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(bnbAmount) <= 0)}
+                disabled={isLoading || (!plnAmount && !celoAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(celoAmount) <= 0)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-6 px-8 rounded-2xl transition-all duration-200 flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-lg"
               >
                 {isLoading ? (
@@ -281,7 +281,7 @@ export default function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     <span className="text-lg">
-                      Buy {bnbAmount || "0"} BNB
+                      Buy {celoAmount || "0"} CELO
                     </span>
                   </>
                 )}
@@ -360,7 +360,7 @@ export default function App() {
         <footer className="mt-8 pt-6 flex justify-center">
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl px-6 py-4 border border-white/10">
             <p className="text-slate-400 text-sm text-center">
-              Built on <span className="text-blue-400 font-semibold">Base</span> with <span className="text-purple-400 font-semibold">MiniKit</span> • 
+              Built on <span className="text-green-400 font-semibold">Celo</span> with <span className="text-purple-400 font-semibold">MiniKit</span> • 
               Powered by <span className="text-green-400 font-semibold">Ramp Network</span>
             </p>
           </div>
