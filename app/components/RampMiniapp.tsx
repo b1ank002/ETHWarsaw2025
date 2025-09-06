@@ -19,31 +19,52 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
   const [celoPrice, setCeloPrice] = useState<number>(1.15); // Default rate in PLN
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
-  // Function to fetch CELO price in PLN
+  // Function to fetch CELO price from Ramp Network
   const fetchCeloPrice = async () => {
     try {
       setIsLoadingPrice(true);
       
-      // Fetch CELO price in USD from CoinGecko API
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=celo&vs_currencies=usd');
-      const data = await response.json();
-      
-      if (data.celo && data.celo.usd) {
-        const celoUsdPrice = data.celo.usd;
+      // Use Ramp's pricing API to get current rates
+      const response = await fetch('https://api.ramp.network/api/host-api/purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          swapAsset: 'CELO',
+          fiatCurrency: 'PLN',
+          fiatValue: 100, // Get price for 100 PLN to calculate rate
+          hostAppName: 'Celo Mini App',
+          hostLogoUrl: '/logo.png',
+          defaultFlow: 'ONRAMP',
+          enabledFlows: ['ONRAMP'],
+          variant: 'auto'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('RampMiniapp - Ramp pricing response:', data);
         
-        // Fetch USD to PLN exchange rate
-        const plnResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const plnData = await plnResponse.json();
-        
-        if (plnData.rates && plnData.rates.PLN) {
-          const usdToPlnRate = plnData.rates.PLN;
-          const celoPlnPrice = celoUsdPrice * usdToPlnRate;
-          setCeloPrice(celoPlnPrice);
-          console.log(`RampMiniapp - Updated CELO price: $${celoUsdPrice} USD = ${celoPlnPrice.toFixed(4)} PLN`);
+        // Extract price from Ramp's response
+        if (data.cryptoAmount && data.fiatAmount) {
+          const cryptoAmount = parseFloat(data.cryptoAmount);
+          const fiatAmount = parseFloat(data.fiatAmount);
+          
+          if (cryptoAmount > 0 && fiatAmount > 0) {
+            const price = fiatAmount / cryptoAmount;
+            setCeloPrice(price);
+            console.log(`RampMiniapp - Updated CELO price from Ramp: ${price.toFixed(4)} PLN per CELO`);
+          }
         }
+      } else {
+        console.log('RampMiniapp - Ramp API response not ok:', response.status);
+        // Fallback to a reasonable default if API fails
+        setCeloPrice(1.15);
       }
+
     } catch (error) {
-      console.error('Error fetching CELO price:', error);
+      console.error('RampMiniapp - Error fetching CELO price from Ramp:', error);
       // Keep the current price if fetch fails
     } finally {
       setIsLoadingPrice(false);
@@ -195,7 +216,7 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
             )}
           </div>
           <div className="text-xs text-green-500 mt-1">
-            Live price • Updates every 15s
+            Ramp Network pricing • Updates every 15s
           </div>
         </div>
       </div>
