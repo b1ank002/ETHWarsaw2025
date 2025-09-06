@@ -46,16 +46,27 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
       // @ts-expect-error - MiniKit methods may vary
       const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
       
-      if (addr && addr !== address) {
-        setAddress(addr);
-        setIsConnected(true);
-        setWalletError("");
-        console.log("Wallet connected:", addr);
-      } else if (!addr && isConnected) {
-        setIsConnected(false);
-        setAddress("");
-        setWalletError("Wallet disconnected");
-        console.log("Wallet disconnected");
+      console.log("Checking wallet status - current address:", address, "new address:", addr, "isConnected:", isConnected);
+      
+      if (addr) {
+        // Address exists - wallet should be connected
+        if (addr !== address) {
+          setAddress(addr);
+          console.log("Address updated:", addr);
+        }
+        if (!isConnected) {
+          setIsConnected(true);
+          setWalletError("");
+          console.log("Wallet connection status updated to connected");
+        }
+      } else {
+        // No address - wallet should be disconnected
+        if (isConnected) {
+          setIsConnected(false);
+          setAddress("");
+          setWalletError("Wallet disconnected");
+          console.log("Wallet disconnected - no address found");
+        }
       }
     } catch (error) {
       console.error("Error checking wallet status:", error);
@@ -67,6 +78,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
 
   // Monitor wallet status continuously
   useEffect(() => {
+    // Immediate check on mount
     checkWalletStatus();
     
     // Check wallet status every 2 seconds
@@ -74,6 +86,14 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
     
     return () => clearInterval(interval);
   }, [checkWalletStatus]);
+
+  // Additional effect to check wallet status when miniKit becomes available
+  useEffect(() => {
+    if (miniKit) {
+      console.log("MiniKit available, checking wallet status immediately");
+      checkWalletStatus();
+    }
+  }, [miniKit, checkWalletStatus]);
 
   // Listen for wallet events
   useEffect(() => {
@@ -127,10 +147,15 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
   // Enhanced Ramp SDK integration with proper event handling
   const initializeRampSdk = useCallback(() => {
     try {
-      const sdk = new RampInstantSDK({
-        url: "https://app.ramp.network",
+      // Determine environment and URL
+      const isDemo = process.env.NEXT_PUBLIC_RAMP_ENVIRONMENT === 'demo';
+      const rampUrl = isDemo ? "https://ri-widget-staging.netlify.app" : "https://app.ramp.network";
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sdkConfig: any = {
+        url: rampUrl,
         hostAppName: "Base Mini App",
-        hostLogoUrl: "/logo.png",
+        hostLogoUrl: `${window.location.origin}/logo.png`,
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
         userAddress: address || undefined,
@@ -138,9 +163,25 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
         fiatCurrency: selectedFiat,
         fiatValue: fiatAmount || undefined,
         variant: "auto",
-        // Add your API key here if you have one
-        // apiKey: process.env.NEXT_PUBLIC_RAMP_API_KEY,
-      });
+        // Add webhook URL for status updates
+        webhookStatusUrl: `${window.location.origin}/api/ramp/webhook`,
+      };
+
+      // Add API key if available (required for production)
+      if (process.env.NEXT_PUBLIC_RAMP_API_KEY) {
+        sdkConfig.apiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY;
+        sdkConfig.hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY;
+      }
+
+      // For demo environment, add additional configuration
+      if (isDemo) {
+        sdkConfig.config = {
+          // Demo-specific configuration
+          environment: 'demo',
+        };
+      }
+
+      const sdk = new RampInstantSDK(sdkConfig);
 
       // Enhanced event listeners for better UX and transaction tracking
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -221,12 +262,38 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
     setWalletError("");
     
     try {
+      console.log("Initializing Ramp SDK with config:", {
+        environment: process.env.NEXT_PUBLIC_RAMP_ENVIRONMENT,
+        hasApiKey: !!process.env.NEXT_PUBLIC_RAMP_API_KEY,
+        address: address,
+        selectedAsset: selectedAsset,
+        selectedFiat: selectedFiat,
+        fiatAmount: fiatAmount,
+      });
+
       const sdk = initializeRampSdk();
       setRampSdk(sdk);
+      
+      console.log("Ramp SDK initialized successfully, showing widget...");
       sdk.show();
     } catch (error) {
       console.error("Error opening Ramp widget:", error);
-      setWalletError("Failed to open Ramp widget. Please try again.");
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to open Ramp widget. ";
+      if (error instanceof Error) {
+        if (error.message.includes("API key")) {
+          errorMessage += "API key configuration issue. Please check your Ramp Network API key.";
+        } else if (error.message.includes("network")) {
+          errorMessage += "Network connection issue. Please check your internet connection.";
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += "Please try again.";
+      }
+      
+      setWalletError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -242,18 +309,25 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
         throw new Error("Wallet not available");
       }
 
+      console.log("Attempting to connect wallet...");
+      
       // @ts-expect-error - MiniKit methods may vary
       await miniKit.connect?.();
       
-      // Wait a moment for connection to establish
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("Wallet connect called, waiting for connection...");
       
-      // Check wallet status after connection
+      // Wait a moment for connection to establish
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Force check wallet status after connection
       await checkWalletStatus();
       
-      if (!isConnected) {
-        throw new Error("Failed to connect wallet");
-      }
+      // Additional check after a short delay
+      setTimeout(async () => {
+        await checkWalletStatus();
+      }, 1000);
+      
+      console.log("Wallet connection attempt completed");
     } catch (error) {
       console.error("Error connecting wallet:", error);
       setWalletError(error instanceof Error ? error.message : "Failed to connect wallet");
@@ -320,8 +394,17 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
                         </p>
                       </div>
                     </div>
-                    <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                      Live
+                    <div className="flex items-center space-x-2">
+                      <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                        Live
+                      </div>
+                      <button
+                        onClick={checkWalletStatus}
+                        className="text-xs text-green-600 hover:text-green-800 underline"
+                        title="Refresh wallet status"
+                      >
+                        Refresh
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -462,6 +545,19 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
             {walletError && (
               <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{walletError}</p>
+              </div>
+            )}
+
+            {/* Debug Information - Remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-600 mb-2">Debug Info:</p>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div>Address: {address || 'None'}</div>
+                  <div>Connected: {isConnected ? 'Yes' : 'No'}</div>
+                  <div>MiniKit Available: {miniKit ? 'Yes' : 'No'}</div>
+                  <div>Connecting: {isConnecting ? 'Yes' : 'No'}</div>
+                </div>
               </div>
             )}
           </>
