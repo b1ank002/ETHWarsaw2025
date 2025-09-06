@@ -337,7 +337,7 @@ export default function App() {
               </div>
             </div>
           </div>
-    </main>
+        </main>
 
         {/* Footer */}
         <footer className="mt-8 pt-6 flex justify-center">

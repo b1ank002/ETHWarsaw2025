@@ -1,0 +1,219 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { RampInstantSDK } from "@ramp-network/ramp-instant-sdk";
+import { useMiniKit } from "@coinbase/onchainkit/minikit";
+
+interface RampMiniappProps {
+  className?: string;
+}
+
+export default function RampMiniapp({ className = "" }: RampMiniappProps) {
+  const miniKit = useMiniKit();
+  const [address, setAddress] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedAsset] = useState<"BNB_BASE">("BNB_BASE");
+  const [selectedFiat] = useState<"PLN">("PLN");
+  const [fiatAmount, setFiatAmount] = useState<string>("");
+  const [isConnected, setIsConnected] = useState(false);
+
+  // Get wallet address from MiniKit
+  useEffect(() => {
+    const getWalletAddress = async () => {
+      try {
+        if (miniKit) {
+          // @ts-expect-error - MiniKit methods may vary
+          const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
+          if (addr) {
+            setAddress(addr);
+            setIsConnected(true);
+          }
+        }
+      } catch {
+        console.log("Wallet not connected or available");
+      }
+    };
+
+    getWalletAddress();
+  }, [miniKit]);
+
+  const openRamp = async () => {
+    setIsLoading(true);
+    
+    try {
+      const sdk = new RampInstantSDK({
+        url: "https://app.ramp.network",
+        hostAppName: "Base Mini App",
+        hostLogoUrl: "/logo.png",
+        defaultFlow: "ONRAMP",
+        enabledFlows: ["ONRAMP"],
+        userAddress: address || undefined,
+        swapAsset: selectedAsset,
+        fiatCurrency: selectedFiat,
+        fiatValue: fiatAmount || undefined,
+        variant: "auto",
+        // Add your API key here if you have one
+        // apiKey: process.env.NEXT_PUBLIC_RAMP_API_KEY,
+      });
+
+      // Event listeners for better UX
+      sdk.on("PURCHASE_CREATED", (event) => {
+        console.log("Purchase created:", event.payload);
+      });
+
+      sdk.on("PURCHASE_SUCCESSFUL", (event) => {
+        console.log("Purchase successful:", event.payload);
+        // You could show a success notification here
+      });
+
+      sdk.on("PURCHASE_FAILED", (event) => {
+        console.log("Purchase failed:", event.payload);
+        // You could show an error notification here
+      });
+
+      sdk.on("WIDGET_CLOSE", () => {
+        console.log("Widget closed");
+        setIsLoading(false);
+      });
+
+      sdk.show();
+    } catch (error) {
+      console.error("Error opening Ramp widget:", error);
+      setIsLoading(false);
+    }
+  };
+
+  const connectWallet = async () => {
+    try {
+      if (miniKit) {
+        // @ts-expect-error - MiniKit methods may vary
+        await miniKit.connect?.();
+        // @ts-expect-error - MiniKit methods may vary
+        const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
+        if (addr) {
+          setAddress(addr);
+          setIsConnected(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error connecting wallet:", error);
+    }
+  };
+
+  return (
+    <div className={`bg-white rounded-2xl shadow-lg p-6 max-w-md mx-auto ${className}`}>
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Buy Crypto on Base
+        </h2>
+        <p className="text-gray-600">
+          Purchase crypto directly with your card
+        </p>
+      </div>
+
+      {/* Wallet Connection Status */}
+      <div className="mb-6">
+        {isConnected ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <p className="text-sm text-green-800">
+              ✅ Wallet Connected
+            </p>
+            <p className="text-xs text-green-600 font-mono truncate">
+              {address}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800 mb-2">
+              Wallet not connected
+            </p>
+            <button
+              onClick={connectWallet}
+              className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded"
+            >
+              Connect Wallet
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Asset Selection */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Buy Binance Coin
+        </label>
+        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 text-center">
+          <div className="text-2xl font-bold text-blue-800 mb-1">BNB</div>
+          <div className="text-sm text-blue-600">Binance Coin</div>
+        </div>
+      </div>
+
+      {/* Fiat Currency Selection */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Pay with Polish Zloty
+        </label>
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 text-center">
+          <div className="text-2xl mb-1">🇵🇱</div>
+          <div className="text-lg font-bold text-green-800">PLN</div>
+          <div className="text-sm text-green-600">Polish Zloty</div>
+        </div>
+      </div>
+
+      {/* Amount Input */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Amount (Optional)
+        </label>
+        <div className="relative">
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={fiatAmount}
+            onChange={(e) => {
+              const value = e.target.value;
+              // Allow empty string, positive numbers, and decimal values
+              if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
+                setFiatAmount(value);
+              }
+            }}
+            placeholder="Enter amount"
+            className="w-full p-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+            {selectedFiat}
+          </div>
+        </div>
+        <div className="mt-1 text-xs text-gray-500">
+          Enter the amount you want to spend in PLN
+        </div>
+      </div>
+
+      {/* Buy Button */}
+      <button
+        onClick={openRamp}
+        disabled={isLoading}
+        className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-colors ${
+          isLoading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+        }`}
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            Opening Ramp...
+          </div>
+        ) : (
+          "Buy BNB on Base"
+        )}
+      </button>
+
+      {/* Info Text */}
+      <p className="text-xs text-gray-500 text-center mt-4">
+        Powered by Ramp Network • Secure & Fast
+      </p>
+    </div>
+  );
+}

@@ -1,113 +1,84 @@
-# MiniKit Template
+# Base Mini App with Ramp Network
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-onchain --mini`](), configured with:
+A clean, modern Next.js miniapp that integrates with Ramp Network to allow users to buy crypto directly on the Base network.
 
-- [MiniKit](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit](https://www.base.org/builders/onchainkit)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Next.js](https://nextjs.org/docs)
+## Features
+
+- 🚀 **Ramp Network Integration** - Buy USDC and ETH directly with fiat
+- 💳 **Multiple Payment Methods** - Support for USD, EUR, GBP
+- 🔗 **MiniKit Wallet Connection** - Seamless wallet integration
+- 📱 **Responsive Design** - Works on all devices
+- 🎨 **Modern UI** - Clean, beautiful interface with Tailwind CSS
+- 📊 **Transaction History** - Track your purchases (Enhanced version)
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org) - React framework
+- [MiniKit](https://docs.base.org/builderkits/minikit/overview) - Base wallet integration
+- [OnchainKit](https://www.base.org/builders/onchainkit) - Web3 components
+- [Ramp Network](https://ramp.network) - Crypto on-ramp
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [TypeScript](https://www.typescriptlang.org) - Type safety
 
 ## Getting Started
 
-1. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-# or
-pnpm install
-# or
-bun install
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment variables:**
+   Create a `.env.local` file with:
+   ```env
+   NEXT_PUBLIC_ONCHAINKIT_API_KEY=your_onchainkit_api_key
+   NEXT_PUBLIC_RAMP_API_KEY=your_ramp_api_key
+   NEXT_PUBLIC_URL=http://localhost:3000
+   NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME=Base Mini App
+   ```
+
+3. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser:**
+   Navigate to `http://localhost:3000`
+
+## Usage
+
+1. **Connect Wallet** - The app will attempt to connect to your wallet via MiniKit
+2. **Select Asset** - Choose between USDC or ETH on Base network
+3. **Choose Currency** - Select your preferred fiat currency
+4. **Enter Amount** - Optionally specify the amount you want to buy
+5. **Buy Crypto** - Click the buy button to open the Ramp Network widget
+
+## Project Structure
+
+```
+app/
+├── components/
+│   ├── RampMiniapp.tsx          # Basic miniapp component
+│   └── EnhancedRampMiniapp.tsx  # Enhanced miniapp with history
+├── page.tsx                     # Main page with toggle
+├── layout.tsx                   # App layout
+└── providers.tsx                # MiniKit and OnchainKit providers
 ```
 
-2. Verify environment variables, these will be set up by the `npx create-onchain --mini` command:
+## Configuration
 
-You can regenerate the FARCASTER Account Association environment variables by running `npx create-onchain --manifest` in your project directory.
+### Ramp Network
+- Get your API key from [Ramp Dashboard](https://dashboard.ramp.network/)
+- Add it to your environment variables
+- The app is configured for Base network (USDC_BASE, ETH_BASE)
 
-The environment variables enable the following features:
-
-- Frame metadata - Sets up the Frame Embed that will be shown when you cast your frame
-- Account association - Allows users to add your frame to their account, enables notifications
-- Redis API keys - Enable Webhooks and background notifications for your application by storing users notification details
-
-```bash
-# Shared/OnchainKit variables
-NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME=
-NEXT_PUBLIC_URL=
-NEXT_PUBLIC_ICON_URL=
-NEXT_PUBLIC_ONCHAINKIT_API_KEY=
-
-# Frame metadata
-FARCASTER_HEADER=
-FARCASTER_PAYLOAD=
-FARCASTER_SIGNATURE=
-NEXT_PUBLIC_APP_ICON=
-NEXT_PUBLIC_APP_SUBTITLE=
-NEXT_PUBLIC_APP_DESCRIPTION=
-NEXT_PUBLIC_APP_SPLASH_IMAGE=
-NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR=
-NEXT_PUBLIC_APP_PRIMARY_CATEGORY=
-NEXT_PUBLIC_APP_HERO_IMAGE=
-NEXT_PUBLIC_APP_TAGLINE=
-NEXT_PUBLIC_APP_OG_TITLE=
-NEXT_PUBLIC_APP_OG_DESCRIPTION=
-NEXT_PUBLIC_APP_OG_IMAGE=
-
-# Redis config
-REDIS_URL=
-REDIS_TOKEN=
-```
-
-3. Start the development server:
-```bash
-npm run dev
-```
-
-## Template Features
-
-### Frame Configuration
-- `.well-known/farcaster.json` endpoint configured for Frame metadata and account association
-- Frame metadata automatically added to page headers in `layout.tsx`
-
-### Background Notifications
-- Redis-backed notification system using Upstash
-- Ready-to-use notification endpoints in `api/notify` and `api/webhook`
-- Notification client utilities in `lib/notification-client.ts`
-
-### Theming
-- Custom theme defined in `theme.css` with OnchainKit variables
-- Pixel font integration with Pixelify Sans
-- Dark/light mode support through OnchainKit
-
-### MiniKit Provider
-The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
-- OnchainKit integration
-- Access to Frames context
-- Sets up Wagmi Connectors
-- Sets up Frame SDK listeners
-- Applies Safe Area Insets
-
-## Customization
-
-To get started building your own frame, follow these steps:
-
-1. Remove the DemoComponents:
-   - Delete `components/DemoComponents.tsx`
-   - Remove demo-related imports from `page.tsx`
-
-2. Start building your Frame:
-   - Modify `page.tsx` to create your Frame UI
-   - Update theme variables in `theme.css`
-   - Adjust MiniKit configuration in `providers.tsx`
-
-3. Add your frame to your account:
-   - Cast your frame to see it in action
-   - Share your frame with others to start building your community
+### MiniKit
+- Configure your OnchainKit API key
+- The app uses Base network by default
+- Wallet connection is handled automatically
 
 ## Learn More
 
+- [Ramp Network Documentation](https://docs.ramp.network/)
 - [MiniKit Documentation](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit Documentation](https://docs.base.org/builderkits/onchainkit/getting-started)
+- [OnchainKit Documentation](https://docs.base.org/builders/onchainkit/getting-started)
 - [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-# ETHWarsaw2025
