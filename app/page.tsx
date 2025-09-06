@@ -44,19 +44,36 @@ export default function App() {
 
   // Get wallet address from MiniKit
   useEffect(() => {
-    (async () => {
+    const updateWalletAddress = async () => {
       try {
         if (context?.client) {
           // @ts-expect-error - MiniKit client structure may vary
-          const addr = context.client.address || context.client.user?.address;
+          const addr = context.client.address || 
+                     // @ts-expect-error - MiniKit client structure may vary
+                     context.client.user?.address || 
+                     // @ts-expect-error - MiniKit client structure may vary
+                     context.client.account?.address ||
+                     // @ts-expect-error - MiniKit client structure may vary
+                     context.client.accounts?.[0]?.address;
+          
           if (addr) {
             setWalletAddress(addr);
+            console.log("Wallet connected:", addr);
+          } else {
+            setWalletAddress("");
+            console.log("No wallet address found");
           }
+        } else {
+          setWalletAddress("");
+          console.log("No wallet client available");
         }
-      } catch {
-        console.log("Wallet not connected or available");
+      } catch (error) {
+        console.log("Error getting wallet address:", error);
+        setWalletAddress("");
       }
-    })();
+    };
+
+    updateWalletAddress();
   }, [context]);
 
   const handlePlnChange = (value: string) => {
@@ -81,50 +98,80 @@ export default function App() {
     }
   };
 
-  const openRamp = useCallback(() => {
+  const openRamp = useCallback(async () => {
+    // Validate wallet connection
     if (!walletAddress) {
       alert("Please connect your wallet first");
       return;
     }
 
+    // Validate amount
     if (!plnAmount || parseFloat(plnAmount) <= 0) {
       alert("Please enter a valid PLN amount");
       return;
     }
 
-    setIsLoading(true);
-    setShowRampWidget(true);
-    
-    const sdk = new RampInstantSDK({
-      url: "https://app.ramp.network",
-      hostAppName: "BNB Purchase App",
-      hostLogoUrl: "/logo.png",
-      defaultFlow: "ONRAMP",
-      enabledFlows: ["ONRAMP"],
-      userAddress: walletAddress,
-      swapAsset: "BNB_BASE",
-      fiatCurrency: "PLN",
-      fiatValue: plnAmount,
-      variant: "auto",
-      // apiKey: process.env.NEXT_PUBLIC_RAMP_API_KEY,
-    });
+    // Validate minimum amount
+    if (parseFloat(plnAmount) < 10) {
+      alert("Minimum purchase amount is 10 PLN");
+      return;
+    }
 
-    sdk.on("*", (event) => {
-      console.log("[RAMP]", event.type, event.payload);
-      if (event.type === "WIDGET_CLOSE") {
-        setIsLoading(false);
-        setShowRampWidget(false);
-      }
-      // @ts-expect-error - Ramp event types may vary
-      if (event.type === "PURCHASE_SUCCESSFUL" || event.type === "PURCHASE_CREATED") {
-        setIsLoading(false);
-        setShowRampWidget(false);
-        alert("BNB purchase successful! Check your wallet.");
-      }
-    });
-    
-    sdk.show();
-  }, [walletAddress, plnAmount]);
+    try {
+      setIsLoading(true);
+      setShowRampWidget(true);
+      
+      console.log("Opening Ramp with:", {
+        walletAddress,
+        plnAmount,
+        bnbAmount
+      });
+      
+      const sdk = new RampInstantSDK({
+        url: "https://app.ramp.network",
+        hostAppName: "BNB Purchase App",
+        hostLogoUrl: "/logo.png",
+        defaultFlow: "ONRAMP",
+        enabledFlows: ["ONRAMP"],
+        userAddress: walletAddress,
+        swapAsset: "BNB_BASE",
+        fiatCurrency: "PLN",
+        fiatValue: plnAmount,
+        variant: "auto",
+        // apiKey: process.env.NEXT_PUBLIC_RAMP_API_KEY,
+      });
+
+      sdk.on("*", (event) => {
+        console.log("[RAMP]", event.type, event.payload);
+        
+        if (event.type === "WIDGET_CLOSE") {
+          setIsLoading(false);
+          setShowRampWidget(false);
+        }
+        
+        // @ts-expect-error - Ramp event types may vary
+        if (event.type === "PURCHASE_SUCCESSFUL" || event.type === "PURCHASE_CREATED") {
+          setIsLoading(false);
+          setShowRampWidget(false);
+          alert("BNB purchase successful! Check your wallet.");
+        }
+        
+        // @ts-expect-error - Ramp event types may vary
+        if (event.type === "PURCHASE_FAILED") {
+          setIsLoading(false);
+          setShowRampWidget(false);
+          alert("Purchase failed. Please try again.");
+        }
+      });
+      
+      sdk.show();
+    } catch (error) {
+      console.error("Error opening Ramp widget:", error);
+      setIsLoading(false);
+      setShowRampWidget(false);
+      alert("Error opening Ramp widget. Please try again.");
+    }
+  }, [walletAddress, plnAmount, bnbAmount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -293,6 +340,12 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {/* Debug info */}
+                <div className="text-xs text-slate-500 mt-2">
+                  <div>Context: {context ? 'Available' : 'Not available'}</div>
+                  <div>Client: {context?.client ? 'Available' : 'Not available'}</div>
+                  <div>Frame Ready: {isFrameReady ? 'Yes' : 'No'}</div>
+                </div>
               </div>
             </div>
           </div>
