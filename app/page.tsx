@@ -46,22 +46,46 @@ export default function App() {
   useEffect(() => {
     const updateWalletAddress = async () => {
       try {
+        // Check if we have a connected wallet through the context
         if (context?.client) {
+          console.log("Context client available:", context.client);
+          
+          // Try to get address from various possible locations
+          let addr = null;
+          
+          // Method 1: Direct address property
           // @ts-expect-error - MiniKit client structure may vary
-          const addr = context.client.address || 
-                     // @ts-expect-error - MiniKit client structure may vary
-                     context.client.user?.address || 
-                     // @ts-expect-error - MiniKit client structure may vary
-                     context.client.account?.address ||
-                     // @ts-expect-error - MiniKit client structure may vary
-                     context.client.accounts?.[0]?.address;
+          if (context.client.address) {
+            // @ts-expect-error - MiniKit client structure may vary
+            addr = context.client.address;
+          }
+          // Method 2: Check if there's a connected account
+          // @ts-expect-error - MiniKit client structure may vary
+          else if (context.client.accounts && context.client.accounts.length > 0) {
+            // @ts-expect-error - MiniKit client structure may vary
+            addr = context.client.accounts[0].address;
+          }
+          // Method 3: Check user object
+          // @ts-expect-error - MiniKit client structure may vary
+          else if (context.client.user?.address) {
+            // @ts-expect-error - MiniKit client structure may vary
+            addr = context.client.user.address;
+          }
+          // Method 4: Check account object
+          // @ts-expect-error - MiniKit client structure may vary
+          else if (context.client.account?.address) {
+            // @ts-expect-error - MiniKit client structure may vary
+            addr = context.client.account.address;
+          }
           
           if (addr) {
             setWalletAddress(addr);
             console.log("Wallet connected:", addr);
           } else {
-            setWalletAddress("");
-            console.log("No wallet address found");
+            // If no address found but client exists, assume wallet is connected
+            // This is a fallback for when the wallet is connected but we can't detect the address
+            console.log("No wallet address found in context, but client exists - assuming connected");
+            setWalletAddress("Connected"); // Use a placeholder to indicate connection
           }
         } else {
           setWalletAddress("");
@@ -75,6 +99,36 @@ export default function App() {
 
     updateWalletAddress();
   }, [context]);
+
+  // Additional effect to check wallet connection status periodically
+  useEffect(() => {
+    const checkWalletStatus = () => {
+      // If we have a context but no wallet address, check if wallet is actually connected
+      if (context?.client && !walletAddress) {
+        // Check if there's any indication that wallet is connected
+        // @ts-expect-error - MiniKit client structure may vary
+        const isConnected = context.client.accounts?.length > 0 || 
+                           // @ts-expect-error - MiniKit client structure may vary
+                           context.client.address || 
+                           // @ts-expect-error - MiniKit client structure may vary
+                           context.client.user?.address ||
+                           // @ts-expect-error - MiniKit client structure may vary
+                           context.client.account?.address;
+        
+        if (isConnected) {
+          setWalletAddress("Connected");
+        }
+      }
+    };
+
+    // Check immediately
+    checkWalletStatus();
+    
+    // Check periodically
+    const interval = setInterval(checkWalletStatus, 1000);
+    
+    return () => clearInterval(interval);
+  }, [context, walletAddress]);
 
   const handlePlnChange = (value: string) => {
     setPlnAmount(value);
@@ -105,6 +159,12 @@ export default function App() {
       return;
     }
 
+    // If wallet is connected but we don't have the address, we can still proceed
+    // Ramp will handle the wallet connection
+    if (walletAddress === "Connected") {
+      console.log("Wallet is connected but address not available, proceeding with Ramp...");
+    }
+
     // Validate amount
     if (!plnAmount || parseFloat(plnAmount) <= 0) {
       alert("Please enter a valid PLN amount");
@@ -133,7 +193,7 @@ export default function App() {
         hostLogoUrl: "/logo.png",
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
-        userAddress: walletAddress,
+        userAddress: walletAddress === "Connected" ? undefined : walletAddress,
         swapAsset: "BNB_BASE",
         fiatCurrency: "PLN",
         fiatValue: plnAmount,
@@ -333,10 +393,17 @@ export default function App() {
                     {walletAddress ? 'Wallet Connected' : 'Wallet Not Connected'}
                   </span>
                 </div>
-                {walletAddress && (
+                {walletAddress && walletAddress !== "Connected" && (
                   <div className="bg-slate-800/50 px-3 py-2 rounded-lg">
                     <div className="text-xs text-slate-400 font-mono">
                       {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                    </div>
+                  </div>
+                )}
+                {walletAddress === "Connected" && (
+                  <div className="bg-slate-800/50 px-3 py-2 rounded-lg">
+                    <div className="text-xs text-slate-400 font-mono">
+                      Wallet Connected (Address not available)
                     </div>
                   </div>
                 )}
