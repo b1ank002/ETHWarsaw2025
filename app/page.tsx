@@ -28,7 +28,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showRampWidget, setShowRampWidget] = useState(false);
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   const addFrame = useAddFrame();
 
@@ -43,60 +42,15 @@ export default function App() {
     setFrameAdded(Boolean(frameAdded));
   }, [addFrame]);
 
-  // Get wallet address from MiniKit - simplified approach
+  // Simple wallet detection - just check if context exists
   useEffect(() => {
-    const updateWalletAddress = async () => {
-      try {
-        // Simple check: if we have a context, assume wallet is connected
-        if (context?.client) {
-          console.log("Context client available:", context.client);
-          
-          // Try to get the actual address first
-          let addr = null;
-          
-          // @ts-expect-error - MiniKit client structure may vary
-          if (context.client.address) {
-            // @ts-expect-error - MiniKit client structure may vary
-            addr = context.client.address;
-          }
-          // @ts-expect-error - MiniKit client structure may vary
-          else if (context.client.accounts && context.client.accounts.length > 0) {
-            // @ts-expect-error - MiniKit client structure may vary
-            addr = context.client.accounts[0].address;
-          }
-          // @ts-expect-error - MiniKit client structure may vary
-          else if (context.client.user?.address) {
-            // @ts-expect-error - MiniKit client structure may vary
-            addr = context.client.user.address;
-          }
-          // @ts-expect-error - MiniKit client structure may vary
-          else if (context.client.account?.address) {
-            // @ts-expect-error - MiniKit client structure may vary
-            addr = context.client.account.address;
-          }
-          
-          if (addr) {
-            setWalletAddress(addr);
-            setIsWalletConnected(true);
-            console.log("Wallet connected with address:", addr);
-          } else {
-            // If we have a client but no address, still consider it connected
-            setWalletAddress("Connected");
-            setIsWalletConnected(true);
-            console.log("Wallet connected but address not available");
-          }
-        } else {
-          setWalletAddress("");
-          setIsWalletConnected(false);
-          console.log("No wallet client available");
-        }
-      } catch (error) {
-        console.log("Error getting wallet address:", error);
-        setWalletAddress("");
-      }
-    };
-
-    updateWalletAddress();
+    if (context?.client) {
+      setWalletAddress("Connected");
+      console.log("Wallet context available");
+    } else {
+      setWalletAddress("");
+      console.log("No wallet context");
+    }
   }, [context]);
 
   const handlePlnChange = (value: string) => {
@@ -122,18 +76,6 @@ export default function App() {
   };
 
   const openRamp = useCallback(async () => {
-    // Validate wallet connection
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first");
-      return;
-    }
-
-    // If wallet is connected but we don't have the address, we can still proceed
-    // Ramp will handle the wallet connection
-    if (walletAddress === "Connected") {
-      console.log("Wallet is connected but address not available, proceeding with Ramp...");
-    }
-
     // Validate amount
     if (!plnAmount || parseFloat(plnAmount) <= 0) {
       alert("Please enter a valid PLN amount");
@@ -151,7 +93,6 @@ export default function App() {
       setShowRampWidget(true);
       
       console.log("Opening Ramp with:", {
-        walletAddress,
         plnAmount,
         bnbAmount
       });
@@ -162,7 +103,7 @@ export default function App() {
         hostLogoUrl: "/logo.png",
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
-        userAddress: walletAddress === "Connected" ? undefined : walletAddress,
+        // Don't pass userAddress - let Ramp handle wallet connection
         swapAsset: "BNB_BASE",
         fiatCurrency: "PLN",
         fiatValue: plnAmount,
@@ -200,7 +141,7 @@ export default function App() {
       setShowRampWidget(false);
       alert("Error opening Ramp widget. Please try again.");
     }
-  }, [isWalletConnected, walletAddress, plnAmount, bnbAmount]);
+  }, [plnAmount, bnbAmount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -326,7 +267,7 @@ export default function App() {
               {/* Buy Button */}
               <button
                 onClick={openRamp}
-                disabled={isLoading || !isWalletConnected || (!plnAmount && !bnbAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(bnbAmount) <= 0)}
+                disabled={isLoading || (!plnAmount && !bnbAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(bnbAmount) <= 0)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-6 px-8 rounded-2xl transition-all duration-200 flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-lg"
               >
                 {isLoading ? (
@@ -352,36 +293,23 @@ export default function App() {
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className={`w-3 h-3 rounded-full ${isWalletConnected ? 'bg-green-400' : 'bg-red-400'} shadow-lg`}></div>
+                <div className={`w-3 h-3 rounded-full ${walletAddress ? 'bg-green-400' : 'bg-red-400'} shadow-lg`}></div>
                 <h3 className="text-lg font-semibold text-white">Wallet Status</h3>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${isWalletConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                  <div className={`w-2 h-2 rounded-full ${walletAddress ? 'bg-green-400' : 'bg-red-400'}`}></div>
                   <span className="text-sm text-slate-300">
-                    {isWalletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
+                    {walletAddress ? 'Wallet Connected' : 'Wallet Not Connected'}
                   </span>
                 </div>
-                {walletAddress && walletAddress !== "Connected" && (
+                {walletAddress && (
                   <div className="bg-slate-800/50 px-3 py-2 rounded-lg">
                     <div className="text-xs text-slate-400 font-mono">
-                      {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                      {walletAddress === "Connected" ? "Wallet Connected" : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}
                     </div>
                   </div>
                 )}
-                {walletAddress === "Connected" && (
-                  <div className="bg-slate-800/50 px-3 py-2 rounded-lg">
-                    <div className="text-xs text-slate-400 font-mono">
-                      Wallet Connected (Address not available)
-                    </div>
-                  </div>
-                )}
-                {/* Debug info */}
-                <div className="text-xs text-slate-500 mt-2">
-                  <div>Context: {context ? 'Available' : 'Not available'}</div>
-                  <div>Client: {context?.client ? 'Available' : 'Not available'}</div>
-                  <div>Frame Ready: {isFrameReady ? 'Yes' : 'No'}</div>
-                </div>
               </div>
             </div>
           </div>
