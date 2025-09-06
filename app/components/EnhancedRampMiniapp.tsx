@@ -380,6 +380,91 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
       <div className="p-6">
         {activeTab === "buy" ? (
           <>
+            {/* Enhanced Wallet Connection Status */}
+            <div className="mb-6">
+              {isConnected ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+                      <div>
+                        <p className="text-sm font-medium text-green-800">Wallet Connected</p>
+                        <p className="text-xs text-green-600 font-mono truncate">
+                          {address}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                        Live
+                      </div>
+                      <button
+                        onClick={checkWalletStatus}
+                        className="text-xs text-green-600 hover:text-green-800 underline"
+                        title="Refresh wallet status"
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className={`rounded-lg p-4 ${
+                  walletError 
+                    ? "bg-red-50 border border-red-200" 
+                    : "bg-yellow-50 border border-yellow-200"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-3 h-3 rounded-full mr-3 ${
+                        isConnecting 
+                          ? "bg-blue-500 animate-pulse" 
+                          : walletError 
+                            ? "bg-red-500" 
+                            : "bg-yellow-500"
+                      }`}></div>
+                      <div>
+                        <p className={`text-sm font-medium ${
+                          walletError ? "text-red-800" : "text-yellow-800"
+                        }`}>
+                          {isConnecting 
+                            ? "Connecting..." 
+                            : walletError 
+                              ? "Connection Error" 
+                              : "Wallet not connected"
+                          }
+                        </p>
+                        <p className={`text-xs ${
+                          walletError ? "text-red-600" : "text-yellow-600"
+                        }`}>
+                          {walletError || "Connect to pre-fill your address"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={connectWallet}
+                      disabled={isConnecting}
+                      className={`text-xs px-3 py-2 rounded-lg font-medium transition-colors ${
+                        isConnecting
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : walletError
+                            ? "bg-red-100 hover:bg-red-200 text-red-800"
+                            : "bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
+                      }`}
+                    >
+                      {isConnecting ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-400 mr-1"></div>
+                          Connecting...
+                        </div>
+                      ) : (
+                        "Connect"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Asset Selection */}
             <div className="mb-6">
