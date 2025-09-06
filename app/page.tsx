@@ -28,6 +28,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showRampWidget, setShowRampWidget] = useState(false);
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   const addFrame = useAddFrame();
 
@@ -42,36 +43,32 @@ export default function App() {
     setFrameAdded(Boolean(frameAdded));
   }, [addFrame]);
 
-  // Get wallet address from MiniKit
+  // Get wallet address from MiniKit - simplified approach
   useEffect(() => {
     const updateWalletAddress = async () => {
       try {
-        // Check if we have a connected wallet through the context
+        // Simple check: if we have a context, assume wallet is connected
         if (context?.client) {
           console.log("Context client available:", context.client);
           
-          // Try to get address from various possible locations
+          // Try to get the actual address first
           let addr = null;
           
-          // Method 1: Direct address property
           // @ts-expect-error - MiniKit client structure may vary
           if (context.client.address) {
             // @ts-expect-error - MiniKit client structure may vary
             addr = context.client.address;
           }
-          // Method 2: Check if there's a connected account
           // @ts-expect-error - MiniKit client structure may vary
           else if (context.client.accounts && context.client.accounts.length > 0) {
             // @ts-expect-error - MiniKit client structure may vary
             addr = context.client.accounts[0].address;
           }
-          // Method 3: Check user object
           // @ts-expect-error - MiniKit client structure may vary
           else if (context.client.user?.address) {
             // @ts-expect-error - MiniKit client structure may vary
             addr = context.client.user.address;
           }
-          // Method 4: Check account object
           // @ts-expect-error - MiniKit client structure may vary
           else if (context.client.account?.address) {
             // @ts-expect-error - MiniKit client structure may vary
@@ -80,15 +77,17 @@ export default function App() {
           
           if (addr) {
             setWalletAddress(addr);
-            console.log("Wallet connected:", addr);
+            setIsWalletConnected(true);
+            console.log("Wallet connected with address:", addr);
           } else {
-            // If no address found but client exists, assume wallet is connected
-            // This is a fallback for when the wallet is connected but we can't detect the address
-            console.log("No wallet address found in context, but client exists - assuming connected");
-            setWalletAddress("Connected"); // Use a placeholder to indicate connection
+            // If we have a client but no address, still consider it connected
+            setWalletAddress("Connected");
+            setIsWalletConnected(true);
+            console.log("Wallet connected but address not available");
           }
         } else {
           setWalletAddress("");
+          setIsWalletConnected(false);
           console.log("No wallet client available");
         }
       } catch (error) {
@@ -99,36 +98,6 @@ export default function App() {
 
     updateWalletAddress();
   }, [context]);
-
-  // Additional effect to check wallet connection status periodically
-  useEffect(() => {
-    const checkWalletStatus = () => {
-      // If we have a context but no wallet address, check if wallet is actually connected
-      if (context?.client && !walletAddress) {
-        // Check if there's any indication that wallet is connected
-        // @ts-expect-error - MiniKit client structure may vary
-        const isConnected = context.client.accounts?.length > 0 || 
-                           // @ts-expect-error - MiniKit client structure may vary
-                           context.client.address || 
-                           // @ts-expect-error - MiniKit client structure may vary
-                           context.client.user?.address ||
-                           // @ts-expect-error - MiniKit client structure may vary
-                           context.client.account?.address;
-        
-        if (isConnected) {
-          setWalletAddress("Connected");
-        }
-      }
-    };
-
-    // Check immediately
-    checkWalletStatus();
-    
-    // Check periodically
-    const interval = setInterval(checkWalletStatus, 1000);
-    
-    return () => clearInterval(interval);
-  }, [context, walletAddress]);
 
   const handlePlnChange = (value: string) => {
     setPlnAmount(value);
@@ -154,7 +123,7 @@ export default function App() {
 
   const openRamp = useCallback(async () => {
     // Validate wallet connection
-    if (!walletAddress) {
+    if (!isWalletConnected) {
       alert("Please connect your wallet first");
       return;
     }
@@ -231,7 +200,7 @@ export default function App() {
       setShowRampWidget(false);
       alert("Error opening Ramp widget. Please try again.");
     }
-  }, [walletAddress, plnAmount, bnbAmount]);
+  }, [isWalletConnected, walletAddress, plnAmount, bnbAmount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -357,7 +326,7 @@ export default function App() {
               {/* Buy Button */}
               <button
                 onClick={openRamp}
-                disabled={isLoading || !walletAddress || (!plnAmount && !bnbAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(bnbAmount) <= 0)}
+                disabled={isLoading || !isWalletConnected || (!plnAmount && !bnbAmount) || (parseFloat(plnAmount) <= 0 && parseFloat(bnbAmount) <= 0)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-6 px-8 rounded-2xl transition-all duration-200 flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-[1.02] disabled:transform-none disabled:shadow-lg"
               >
                 {isLoading ? (
@@ -383,14 +352,14 @@ export default function App() {
           <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-xl border border-white/10 overflow-hidden">
             <div className="p-6">
               <div className="flex items-center space-x-3 mb-4">
-                <div className={`w-3 h-3 rounded-full ${walletAddress ? 'bg-green-400' : 'bg-red-400'} shadow-lg`}></div>
+                <div className={`w-3 h-3 rounded-full ${isWalletConnected ? 'bg-green-400' : 'bg-red-400'} shadow-lg`}></div>
                 <h3 className="text-lg font-semibold text-white">Wallet Status</h3>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${walletAddress ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                  <div className={`w-2 h-2 rounded-full ${isWalletConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
                   <span className="text-sm text-slate-300">
-                    {walletAddress ? 'Wallet Connected' : 'Wallet Not Connected'}
+                    {isWalletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
                   </span>
                 </div>
                 {walletAddress && walletAddress !== "Connected" && (
