@@ -57,7 +57,7 @@ export default function App() {
     setPlnAmount(value);
     // Automatic calculation from PLN to CELO
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const celoValue = (parseFloat(value) / 2.5).toFixed(8);
+      const celoValue = (parseFloat(value) / 1.15).toFixed(8);
       setCeloAmount(celoValue);
     } else {
       setCeloAmount("");
@@ -68,7 +68,7 @@ export default function App() {
     setCeloAmount(value);
     // Automatic calculation from CELO to PLN
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const plnValue = (parseFloat(value) * 2.5).toFixed(2);
+      const plnValue = (parseFloat(value) * 1.15).toFixed(2);
       setPlnAmount(plnValue);
     } else {
       setPlnAmount("");
@@ -261,7 +261,7 @@ export default function App() {
 
               {/* Conversion Rate */}
               <div className="text-center text-sm text-slate-400 mb-8">
-                <span className="bg-slate-800/50 px-4 py-2 rounded-full">1.00 CELO = PLN 2.50</span>
+                <span className="bg-slate-800/50 px-4 py-2 rounded-full">1.00 CELO = PLN 1.15</span>
               </div>
 
               {/* Buy Button */}
