@@ -32,6 +32,39 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeTab, setActiveTab] = useState<"buy" | "history">("buy");
   const [rampSdk, setRampSdk] = useState<RampInstantSDK | null>(null);
+  const [celoPrice, setCeloPrice] = useState<number>(1.15); // Default rate in PLN
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
+
+  // Function to fetch CELO price in PLN
+  const fetchCeloPrice = useCallback(async () => {
+    try {
+      setIsLoadingPrice(true);
+      
+      // Fetch CELO price in USD from CoinGecko API
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=celo&vs_currencies=usd');
+      const data = await response.json();
+      
+      if (data.celo && data.celo.usd) {
+        const celoUsdPrice = data.celo.usd;
+        
+        // Fetch USD to PLN exchange rate
+        const plnResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const plnData = await plnResponse.json();
+        
+        if (plnData.rates && plnData.rates.PLN) {
+          const usdToPlnRate = plnData.rates.PLN;
+          const celoPlnPrice = celoUsdPrice * usdToPlnRate;
+          setCeloPrice(celoPlnPrice);
+          console.log(`EnhancedRampMiniapp - Updated CELO price: $${celoUsdPrice} USD = ${celoPlnPrice.toFixed(4)} PLN`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching CELO price:', error);
+      // Keep the current price if fetch fails
+    } finally {
+      setIsLoadingPrice(false);
+    }
+  }, []);
 
   // Enhanced wallet status checking with persistent monitoring
   const checkWalletStatus = useCallback(async () => {
@@ -86,6 +119,18 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
     
     return () => clearInterval(interval);
   }, [checkWalletStatus]);
+
+  // Fetch initial price and set up 15-second intervals
+  useEffect(() => {
+    // Fetch price immediately
+    fetchCeloPrice();
+    
+    // Set up interval to fetch price every 15 seconds
+    const interval = setInterval(fetchCeloPrice, 15000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, [fetchCeloPrice]);
 
   // Additional effect to check wallet status when miniKit becomes available
   useEffect(() => {
@@ -473,7 +518,16 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
               </label>
               <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 text-center">
                 <div className="text-3xl font-bold text-green-800 mb-2">CELO</div>
-                <div className="text-sm text-green-600">Celo Native Token</div>
+                <div className="text-sm text-green-600 mb-2">Celo Native Token</div>
+                <div className="text-xs text-green-700 flex items-center justify-center space-x-1">
+                  <span>1 CELO = PLN {celoPrice.toFixed(4)}</span>
+                  {isLoadingPrice && (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b border-green-600"></div>
+                  )}
+                </div>
+                <div className="text-xs text-green-500 mt-1">
+                  Live price • Updates every 15s
+                </div>
               </div>
             </div>
 

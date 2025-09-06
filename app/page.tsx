@@ -28,14 +28,59 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showRampWidget, setShowRampWidget] = useState(false);
+  const [celoPrice, setCeloPrice] = useState<number>(1.15); // Default rate in PLN
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
   const addFrame = useAddFrame();
+
+  // Function to fetch CELO price in PLN
+  const fetchCeloPrice = async () => {
+    try {
+      setIsLoadingPrice(true);
+      
+      // Fetch CELO price in USD from CoinGecko API
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=celo&vs_currencies=usd');
+      const data = await response.json();
+      
+      if (data.celo && data.celo.usd) {
+        const celoUsdPrice = data.celo.usd;
+        
+        // Fetch USD to PLN exchange rate
+        const plnResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const plnData = await plnResponse.json();
+        
+        if (plnData.rates && plnData.rates.PLN) {
+          const usdToPlnRate = plnData.rates.PLN;
+          const celoPlnPrice = celoUsdPrice * usdToPlnRate;
+          setCeloPrice(celoPlnPrice);
+          console.log(`Updated CELO price: $${celoUsdPrice} USD = ${celoPlnPrice.toFixed(4)} PLN`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching CELO price:', error);
+      // Keep the current price if fetch fails
+    } finally {
+      setIsLoadingPrice(false);
+    }
+  };
 
   useEffect(() => {
     if (!isFrameReady) {
       setFrameReady();
     }
   }, [setFrameReady, isFrameReady]);
+
+  // Fetch initial price and set up 15-second intervals
+  useEffect(() => {
+    // Fetch price immediately
+    fetchCeloPrice();
+    
+    // Set up interval to fetch price every 15 seconds
+    const interval = setInterval(fetchCeloPrice, 15000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAddFrame = useCallback(async () => {
     const frameAdded = await addFrame();
@@ -55,9 +100,9 @@ export default function App() {
 
   const handlePlnChange = (value: string) => {
     setPlnAmount(value);
-    // Automatic calculation from PLN to CELO
+    // Automatic calculation from PLN to CELO using live price
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const celoValue = (parseFloat(value) / 1.15).toFixed(8);
+      const celoValue = (parseFloat(value) / celoPrice).toFixed(8);
       setCeloAmount(celoValue);
     } else {
       setCeloAmount("");
@@ -66,9 +111,9 @@ export default function App() {
 
   const handleCeloChange = (value: string) => {
     setCeloAmount(value);
-    // Automatic calculation from CELO to PLN
+    // Automatic calculation from CELO to PLN using live price
     if (value && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-      const plnValue = (parseFloat(value) * 1.15).toFixed(2);
+      const plnValue = (parseFloat(value) * celoPrice).toFixed(2);
       setPlnAmount(plnValue);
     } else {
       setPlnAmount("");
@@ -261,7 +306,15 @@ export default function App() {
 
               {/* Conversion Rate */}
               <div className="text-center text-sm text-slate-400 mb-8">
-                <span className="bg-slate-800/50 px-4 py-2 rounded-full">1.00 CELO = PLN 1.15</span>
+                <div className="bg-slate-800/50 px-4 py-2 rounded-full inline-flex items-center space-x-2">
+                  <span>1.00 CELO = PLN {celoPrice.toFixed(4)}</span>
+                  {isLoadingPrice && (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b border-green-400"></div>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Live price • Updates every 15 seconds
+                </div>
               </div>
 
               {/* Buy Button */}
