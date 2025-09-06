@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { RampInstantSDK } from "@ramp-network/ramp-instant-sdk";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 
@@ -18,6 +18,7 @@ interface Transaction {
   timestamp: Date;
 }
 
+
 export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMiniappProps) {
   const miniKit = useMiniKit();
   const [address, setAddress] = useState<string>("");
@@ -26,32 +27,105 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
   const [selectedFiat] = useState<"PLN">("PLN");
   const [fiatAmount, setFiatAmount] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
-  const [transactions] = useState<Transaction[]>([]);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [walletError, setWalletError] = useState<string>("");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeTab, setActiveTab] = useState<"buy" | "history">("buy");
+  const [rampSdk, setRampSdk] = useState<RampInstantSDK | null>(null);
 
-  // Get wallet address from MiniKit
+  // Enhanced wallet status checking with persistent monitoring
+  const checkWalletStatus = useCallback(async () => {
+    try {
+      if (!miniKit) {
+        setIsConnected(false);
+        setAddress("");
+        setWalletError("Wallet not available");
+        return;
+      }
+
+      // @ts-expect-error - MiniKit methods may vary
+      const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
+      
+      if (addr && addr !== address) {
+        setAddress(addr);
+        setIsConnected(true);
+        setWalletError("");
+        console.log("Wallet connected:", addr);
+      } else if (!addr && isConnected) {
+        setIsConnected(false);
+        setAddress("");
+        setWalletError("Wallet disconnected");
+        console.log("Wallet disconnected");
+      }
+    } catch (error) {
+      console.error("Error checking wallet status:", error);
+      setIsConnected(false);
+      setAddress("");
+      setWalletError("Failed to check wallet status");
+    }
+  }, [miniKit, address, isConnected]);
+
+  // Monitor wallet status continuously
   useEffect(() => {
-    const getWalletAddress = async () => {
-      try {
-        if (miniKit) {
-          // @ts-expect-error - MiniKit methods may vary
-          const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
-          if (addr) {
-            setAddress(addr);
-            setIsConnected(true);
-          }
+    checkWalletStatus();
+    
+    // Check wallet status every 2 seconds
+    const interval = setInterval(checkWalletStatus, 2000);
+    
+    return () => clearInterval(interval);
+  }, [checkWalletStatus]);
+
+  // Listen for wallet events
+  useEffect(() => {
+    if (miniKit) {
+      const handleAccountsChanged = () => {
+        console.log("Wallet accounts changed");
+        checkWalletStatus();
+      };
+
+      const handleDisconnect = () => {
+        console.log("Wallet disconnected");
+        setIsConnected(false);
+        setAddress("");
+        setWalletError("Wallet disconnected");
+      };
+
+      // @ts-expect-error - MiniKit may have event listeners
+      if (miniKit.on) {
+        // @ts-expect-error - MiniKit may have event listeners
+        miniKit.on('accountsChanged', handleAccountsChanged);
+        // @ts-expect-error - MiniKit may have event listeners
+        miniKit.on('disconnect', handleDisconnect);
+      }
+
+      return () => {
+        // @ts-expect-error - MiniKit may have event listeners
+        if (miniKit.off) {
+          // @ts-expect-error - MiniKit may have event listeners
+          miniKit.off('accountsChanged', handleAccountsChanged);
+          // @ts-expect-error - MiniKit may have event listeners
+          miniKit.off('disconnect', handleDisconnect);
         }
-      } catch {
-        console.log("Wallet not connected or available");
+      };
+    }
+  }, [miniKit, checkWalletStatus]);
+
+  // Cleanup Ramp SDK on unmount
+  useEffect(() => {
+    return () => {
+      if (rampSdk) {
+        try {
+          // @ts-expect-error - destroy method may not be typed
+          rampSdk.destroy?.();
+        } catch (error) {
+          console.error("Error destroying Ramp SDK:", error);
+        }
       }
     };
+  }, [rampSdk]);
 
-    getWalletAddress();
-  }, [miniKit]);
-
-  const openRamp = async () => {
-    setIsLoading(true);
-    
+  // Enhanced Ramp SDK integration with proper event handling
+  const initializeRampSdk = useCallback(() => {
     try {
       const sdk = new RampInstantSDK({
         url: "https://app.ramp.network",
@@ -68,36 +142,123 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
         // apiKey: process.env.NEXT_PUBLIC_RAMP_API_KEY,
       });
 
-      // Event listeners for better UX
-      sdk.on("*", (event) => {
-        console.log("Ramp event:", event.type);
+      // Enhanced event listeners for better UX and transaction tracking
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sdk.on("*", (event: any) => {
+        console.log("Ramp event:", event.type, event);
         
-        if (event.type === "WIDGET_CLOSE") {
-          setIsLoading(false);
+        switch (event.type) {
+          case "WIDGET_CLOSE":
+            setIsLoading(false);
+            break;
+          case "PURCHASE_CREATED":
+            console.log("Purchase created:", event.payload);
+            // Add transaction to history
+            if (event.payload?.purchase) {
+              const newTransaction: Transaction = {
+                id: event.payload.purchase.id || Date.now().toString(),
+                asset: selectedAsset,
+                amount: event.payload.purchase.cryptoAmount || "0",
+                fiatAmount: event.payload.purchase.fiatAmount || fiatAmount,
+                fiatCurrency: selectedFiat,
+                status: "pending",
+                timestamp: new Date(),
+              };
+              setTransactions(prev => [newTransaction, ...prev]);
+            }
+            break;
+          case "PURCHASE_SUCCESSFUL":
+            console.log("Purchase successful:", event.payload);
+            // Update transaction status
+            if (event.payload?.purchase?.id) {
+              setTransactions(prev => 
+                prev.map(tx => 
+                  tx.id === event.payload.purchase.id 
+                    ? { ...tx, status: "completed" as const }
+                    : tx
+                )
+              );
+            }
+            break;
+          case "PURCHASE_FAILED":
+            console.log("Purchase failed:", event.payload);
+            // Update transaction status
+            if (event.payload?.purchase?.id) {
+              setTransactions(prev => 
+                prev.map(tx => 
+                  tx.id === event.payload.purchase.id 
+                    ? { ...tx, status: "failed" as const }
+                    : tx
+                )
+              );
+            }
+            break;
+          case "WIDGET_ERROR":
+            console.error("Ramp widget error:", event.payload);
+            setIsLoading(false);
+            break;
+          default:
+            // Handle any other events
+            console.log("Unhandled Ramp event:", event.type);
+            break;
         }
       });
 
+      return sdk;
+    } catch (error) {
+      console.error("Error initializing Ramp SDK:", error);
+      throw error;
+    }
+  }, [address, selectedAsset, selectedFiat, fiatAmount]);
+
+  const openRamp = async () => {
+    if (!isConnected) {
+      setWalletError("Please connect your wallet first");
+      return;
+    }
+
+    setIsLoading(true);
+    setWalletError("");
+    
+    try {
+      const sdk = initializeRampSdk();
+      setRampSdk(sdk);
       sdk.show();
     } catch (error) {
       console.error("Error opening Ramp widget:", error);
+      setWalletError("Failed to open Ramp widget. Please try again.");
       setIsLoading(false);
     }
   };
 
   const connectWallet = async () => {
+    if (isConnecting) return;
+    
+    setIsConnecting(true);
+    setWalletError("");
+    
     try {
-      if (miniKit) {
-        // @ts-expect-error - MiniKit methods may vary
-        await miniKit.connect?.();
-        // @ts-expect-error - MiniKit methods may vary
-        const addr = (await miniKit.getDefaultAddress?.()) || (await miniKit.getAddress?.());
-        if (addr) {
-          setAddress(addr);
-          setIsConnected(true);
-        }
+      if (!miniKit) {
+        throw new Error("Wallet not available");
+      }
+
+      // @ts-expect-error - MiniKit methods may vary
+      await miniKit.connect?.();
+      
+      // Wait a moment for connection to establish
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check wallet status after connection
+      await checkWalletStatus();
+      
+      if (!isConnected) {
+        throw new Error("Failed to connect wallet");
       }
     } catch (error) {
       console.error("Error connecting wallet:", error);
+      setWalletError(error instanceof Error ? error.message : "Failed to connect wallet");
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -145,32 +306,77 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
       <div className="p-6">
         {activeTab === "buy" ? (
           <>
-            {/* Wallet Connection Status */}
+            {/* Enhanced Wallet Connection Status */}
             <div className="mb-6">
               {isConnected ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                    <div>
-                      <p className="text-sm font-medium text-green-800">Wallet Connected</p>
-                      <p className="text-xs text-green-600 font-mono truncate">
-                        {address}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+                      <div>
+                        <p className="text-sm font-medium text-green-800">Wallet Connected</p>
+                        <p className="text-xs text-green-600 font-mono truncate">
+                          {address}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                      Live
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className={`rounded-lg p-4 ${
+                  walletError 
+                    ? "bg-red-50 border border-red-200" 
+                    : "bg-yellow-50 border border-yellow-200"
+                }`}>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-yellow-800">Wallet not connected</p>
-                      <p className="text-xs text-yellow-600">Connect to pre-fill your address</p>
+                    <div className="flex items-center">
+                      <div className={`w-3 h-3 rounded-full mr-3 ${
+                        isConnecting 
+                          ? "bg-blue-500 animate-pulse" 
+                          : walletError 
+                            ? "bg-red-500" 
+                            : "bg-yellow-500"
+                      }`}></div>
+                      <div>
+                        <p className={`text-sm font-medium ${
+                          walletError ? "text-red-800" : "text-yellow-800"
+                        }`}>
+                          {isConnecting 
+                            ? "Connecting..." 
+                            : walletError 
+                              ? "Connection Error" 
+                              : "Wallet not connected"
+                          }
+                        </p>
+                        <p className={`text-xs ${
+                          walletError ? "text-red-600" : "text-yellow-600"
+                        }`}>
+                          {walletError || "Connect to pre-fill your address"}
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={connectWallet}
-                      className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg font-medium"
+                      disabled={isConnecting}
+                      className={`text-xs px-3 py-2 rounded-lg font-medium transition-colors ${
+                        isConnecting
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : walletError
+                            ? "bg-red-100 hover:bg-red-200 text-red-800"
+                            : "bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
+                      }`}
                     >
-                      Connect
+                      {isConnecting ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-400 mr-1"></div>
+                          Connecting...
+                        </div>
+                      ) : (
+                        "Connect"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -230,12 +436,12 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
               </div>
             </div>
 
-            {/* Buy Button */}
+            {/* Enhanced Buy Button */}
             <button
               onClick={openRamp}
-              disabled={isLoading}
+              disabled={isLoading || !isConnected}
               className={`w-full py-4 px-6 rounded-xl font-semibold text-white text-lg transition-all ${
-                isLoading
+                isLoading || !isConnected
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 shadow-lg"
               }`}
@@ -245,10 +451,19 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
                   Opening Ramp...
                 </div>
+              ) : !isConnected ? (
+                "Connect Wallet to Buy"
               ) : (
                 "Buy BNB on Base"
               )}
             </button>
+            
+            {/* Error Display */}
+            {walletError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{walletError}</p>
+              </div>
+            )}
           </>
         ) : (
           /* Transaction History */
