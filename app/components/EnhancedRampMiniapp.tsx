@@ -23,7 +23,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
   const miniKit = useMiniKit();
   const [address, setAddress] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedAsset] = useState<"BNB_BASE">("BNB_BASE");
+  const [selectedAsset] = useState<"CELO">("CELO");
   const [selectedFiat] = useState<"PLN">("PLN");
   const [fiatAmount, setFiatAmount] = useState<string>("");
   const [isConnected, setIsConnected] = useState(false);
@@ -154,7 +154,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sdkConfig: any = {
         url: rampUrl,
-        hostAppName: "Base Mini App",
+        hostAppName: "Celo Mini App",
         hostLogoUrl: `${window.location.origin}/logo.png`,
         defaultFlow: "ONRAMP",
         enabledFlows: ["ONRAMP"],
@@ -348,9 +348,9 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
   return (
     <div className={`bg-white rounded-2xl shadow-xl overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+      <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">Crypto Purchase</h2>
-        <p className="text-blue-100">Buy crypto directly on Base network</p>
+        <p className="text-green-100">Buy CELO directly on Celo network</p>
       </div>
 
       {/* Tabs */}
@@ -359,17 +359,17 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
           onClick={() => setActiveTab("buy")}
           className={`flex-1 py-3 px-4 text-sm font-medium ${
             activeTab === "buy"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+              ? "text-green-600 border-b-2 border-green-600 bg-green-50"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          Buy Crypto
+          Buy CELO
         </button>
         <button
           onClick={() => setActiveTab("history")}
           className={`flex-1 py-3 px-4 text-sm font-medium ${
             activeTab === "history"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
+              ? "text-green-600 border-b-2 border-green-600 bg-green-50"
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
@@ -469,11 +469,11 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
             {/* Asset Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Buy Binance Coin
+                Buy CELO
               </label>
-              <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-6 text-center">
-                <div className="text-3xl font-bold text-blue-800 mb-2">BNB</div>
-                <div className="text-sm text-blue-600">Binance Coin</div>
+              <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6 text-center">
+                <div className="text-3xl font-bold text-green-800 mb-2">CELO</div>
+                <div className="text-sm text-green-600">Celo Native Token</div>
               </div>
             </div>
 
@@ -526,7 +526,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
               className={`w-full py-4 px-6 rounded-xl font-semibold text-white text-lg transition-all ${
                 isLoading || !isConnected
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 shadow-lg"
+                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:scale-95 shadow-lg"
               }`}
             >
               {isLoading ? (
@@ -537,7 +537,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
               ) : !isConnected ? (
                 "Connect Wallet to Buy"
               ) : (
-                "Buy BNB on Base"
+                "Buy CELO on Celo"
               )}
             </button>
             
@@ -580,14 +580,14 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
                   <div key={tx.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-xs font-bold text-blue-600">
-                            {tx.asset.split('_')[0]}
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-xs font-bold text-green-600">
+                            CELO
                           </span>
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {tx.asset.split('_')[0]} Purchase
+                            CELO Purchase
                           </p>
                           <p className="text-sm text-gray-500">
                             {tx.timestamp.toLocaleString()}
@@ -603,7 +603,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
                         {tx.fiatAmount} {tx.fiatCurrency}
                       </span>
                       <span className="font-medium">
-                        {tx.amount} {tx.asset.split('_')[0]}
+                        {tx.amount} CELO
                       </span>
                     </div>
                   </div>
@@ -617,7 +617,7 @@ export default function EnhancedRampMiniapp({ className = "" }: EnhancedRampMini
       {/* Footer */}
       <div className="bg-gray-50 px-6 py-4 border-t">
         <p className="text-xs text-gray-500 text-center">
-          Powered by Ramp Network • Secure & Fast
+          Powered by Ramp Network • Buy CELO on Celo Network
         </p>
       </div>
     </div>
