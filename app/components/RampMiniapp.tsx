@@ -57,23 +57,21 @@ export default function RampMiniapp({ className = "" }: RampMiniappProps) {
       });
 
       // Event listeners for better UX
-      sdk.on("PURCHASE_CREATED", (event) => {
-        console.log("Purchase created:", event.payload);
-      });
-
-      sdk.on("PURCHASE_SUCCESSFUL", (event) => {
-        console.log("Purchase successful:", event.payload);
-        // You could show a success notification here
-      });
-
-      sdk.on("PURCHASE_FAILED", (event) => {
-        console.log("Purchase failed:", event.payload);
-        // You could show an error notification here
-      });
-
-      sdk.on("WIDGET_CLOSE", () => {
-        console.log("Widget closed");
-        setIsLoading(false);
+      sdk.on("*", (event) => {
+        console.log("[RAMP]", event.type, event.payload);
+        if (event.type === "WIDGET_CLOSE") {
+          setIsLoading(false);
+        }
+        // @ts-expect-error - Ramp event types may vary
+        if (event.type === "PURCHASE_SUCCESSFUL" || event.type === "PURCHASE_CREATED") {
+          setIsLoading(false);
+          // You could show a success notification here
+        }
+        // @ts-expect-error - Ramp event types may vary
+        if (event.type === "PURCHASE_FAILED") {
+          setIsLoading(false);
+          // You could show an error notification here
+        }
       });
 
       sdk.show();
